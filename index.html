@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>বিদ্যুৎ বিল ক্যালকুলেটর</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="custom.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    </head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+
+    <div id="preloader">
+        <div class="preloader-spinner"></div>
+        <span id="preloader-message">লোড হচ্ছে...</span>
+    </div>
+
+    <header class="bg-gradient-to-r from-green-500 to-green-700 text-white p-4 shadow-lg">
+        <div class="container mx-auto flex justify-center items-center">
+            <h1 class="text-3xl font-bold rounded-lg p-2 bg-white bg-opacity-20 flex items-center">
+                <i class="fas fa-bolt mr-2"></i> বিদ্যুৎ বিল ক্যালকুলেটর
+                <span id="beta-info-span" class="text-xs bg-yellow-400 text-yellow-900 rounded-full px-2 py-0.5 ml-2 font-semibold cursor-pointer"
+                      title="এটি একটি পরীক্ষামূলক সংস্করণ। কিছু ফিচার এখনো উন্নয়নাধীন থাকতে পারে।">Beta</span>
+            </h1>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 flex-grow">
+        <div class="card mb-6">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800 text-center">বিদ্যুৎ বিল ক্যালকুলেটর</h2>
+
+            <div class="flex flex-wrap justify-center gap-4 mb-6 tab-buttons">
+                <button class="tab-button active" data-tab="appliance-wise">যন্ত্রপাতি-ভিত্তিক বিল গণনা</button>
+                <button class="tab-button" data-tab="general-bill">মোট ইউনিট অনুযায়ী বিল</button>
+                <button class="tab-button" data-tab="three-phase-bill">
+                    থ্রি-ফেজ বিল গণনা
+                    <span id="three-phase-beta-span" class="text-xs bg-yellow-400 text-yellow-900 rounded-full px-2 py-0.5 ml-1 font-semibold cursor-pointer"
+                          title="এই ফিচারটি পরীক্ষামূলক পর্যায়ে রয়েছে এবং ডেটা সম্পূর্ণ নাও হতে পারে।">Beta</span>
+                </button>
+            </div>
+
+            <div class="card mb-6">
+                <h3 class="text-xl font-semibold mb-4 text-gray-700">আপনার অবস্থান নির্বাচন করুন</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="division-select" class="block text-sm font-medium text-gray-700 mb-1">বিভাগ নির্বাচন করুন</label>
+                        <select id="division-select" class="input-field">
+                            <option value="">বিভাগ নির্বাচন করুন</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="district-select" class="block text-sm font-medium text-gray-700 mb-1">জেলা নির্বাচন করুন</label>
+                        <select id="district-select" class="input-field" disabled>
+                            <option value="">জেলা নির্বাচন করুন</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="upazila-select" class="block text-sm font-medium text-gray-700 mb-1">উপজেলা নির্বাচন করুন</label>
+                        <select id="upazila-select" class="input-field" disabled>
+                            <option value="">উপজেলা নির্বাচন করুন</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="area-select" class="block text-sm font-medium text-gray-700 mb-1">এলাকা নির্বাচন করুন</label>
+                        <select id="area-select" class="input-field" disabled>
+                            <option value="">এলাকা নির্বাচন করুন</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="provider-select" class="block text-sm font-medium text-gray-700 mb-1">বিদ্যুৎ সরবরাহকারী নির্বাচন করুন</label>
+                        <select id="provider-select" class="input-field" disabled>
+                            <option value="">বিদ্যুৎ সরবরাহকারী নির্বাচন করুন</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="tariff-info-toggle-area" class="hidden">
+                    <div class="flex items-center justify-between mt-4">
+                        <h3 class="font-semibold text-xl text-gray-700">নির্বাচিত ট্যারিফ তথ্য:</h3>
+                        <button id="toggle-tariff-info" class="btn-secondary px-4 py-2 text-sm">
+                            <i class="fas fa-eye"></i> দেখান
+                        </button>
+                    </div>
+                    <div id="tariff-info" class="bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg mt-4 hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-4">
+                            <p><span class="font-medium text-green-800">সরবরাহকারী:</span> <span id="selected-provider-name" class="font-bold text-green-700"></span></p>
+                            <p><span class="font-medium text-green-800">ট্যারিফ প্রকার:</span> <span id="selected-tariff-type" class="font-bold text-green-700"></span></p>
+                            <p><span class="font-medium text-green-800">ফিক্সড চার্জ:</span> ৳ <span id="selected-fixed-charge" class="font-bold text-green-700">০.০০</span></p>
+                            <p><span class="font-medium text-green-800">ডিমান্ড চার্জ:</span> ৳ <span id="selected-demand-charge" class="font-bold text-green-700">০.০০</span></p>
+                            <div class="md:col-span-2 mt-2">
+                                <p class="font-medium text-green-800 mb-1">ইউনিট স্ল্যাব মূল্য:</p>
+                                <ul id="tariff-slabs" class="list-disc list-inside text-sm text-green-700 pl-4">
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="appliance-wise" class="tab-content">
+                <div class="card mb-6">
+                    <h3 class="text-xl font-semibold mb-4 text-gray-700">যন্ত্রপাতি যোগ করুন</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="appliance-select" class="block text-sm font-medium text-gray-700 mb-1">পূর্বনির্ধারিত যন্ত্রপাতি</label>
+                            <select id="appliance-select" class="input-field">
+                                <option value="">নির্বাচিত যন্ত্রপাতি</option>
+                                <option value="এলইডি লাইট|10">এলইডি লাইট (10W)</option>
+                                <option value="ফ্যান|75">ফ্যান (75W)</option>
+                                <option value="রেফ্রিজারেটর|150">রেফ্রিজারেটর (150W)</option>
+                                <option value="টিভি|100">টিভি (100W)</option>
+                                <option value="কম্পিউটার|200">কম্পিউটার (200W)</option>
+                                <option value="মাইক্রোওয়েভ ওভেন|1200">মাইক্রোওয়েভ ওভেন (1200W)</option>
+                                <option value="ওয়াশিং মেশিন|2000">ওয়াশিং মেশিন (2000W)</option>
+                                <option value="ইলেকট্রিক কেটলি|1500">ইলেকট্রিক কেটলি (1500W)</option>
+                                <option value="হেয়ার ড্রায়ার|1800">হেয়ার ড্রায়ার (1800W)</option>
+                                <option value="ভ্যাকুয়াম ক্লিনার|1000">ভ্যাকুয়াম ক্লিনার (1000W)</option>
+                                <option value="টোস্টার|800">টোস্টার (800W)</option>
+                                <option value="ব্লেন্ডার|300">ব্লেন্ডার (300W)</option>
+                                <option value="কফি মেকার|1000">কফি মেকার (1000W)</option>
+                                <option value="ডিশওয়াশার|1200">ডিশওয়াশার (1200W)</option>
+                                <option value="ইলেকট্রিক ওভেন|2500">ইলেকট্রিক ওভেন (2500W)</option>
+                                <option value="ওয়াটার হিটার (গিজার)|2000">ওয়াটার হিটার (গিজার) (2000W)</option>
+                                <option value="ইস্ত্রি|1000">ইস্ত্রি (1000W)</option>
+                                <option value="পানির পাম্প|750">পানির পাম্প (750W)</option>
+                                <option value="এয়ার কুলার|150">এয়ার কুলার (150W)</option>
+                                <option value="সাউন্ড সিস্টেম|50">সাউন্ড সিস্টেম (50W)</option>
+                                <option value="প্রিন্টার|50">প্রিন্টার (50W)</option>
+                                <option value="রাউটার|10">রাউটার (10W)</option>
+                                <option value="চার্জার (মোবাইল/ল্যাপটপ)|15">চার্জার (মোবাইল/ল্যাপটপ) (15W)</option>
+                                <option value="ইলেকট্রিক কুকার|1000">ইলেকট্রিক কুকার (1000W)</option>
+                                <option value="হিটার|2000">হিটার (2000W)</option>
+                                <option value="ডিশ অ্যান্টেনা|10">ডিশ অ্যান্টেনা (10W)</option>
+                                <option value="সিসিটিভি ক্যামেরা|10">সিসিটিভি ক্যামেরা (10W)</option>
+                                <option value="সিকিউরিটি অ্যালার্ম|5">সিকিউরিটি অ্যালার্ম (5W)</option>
+                                <option value="ইলেকট্রিক শেভার|5">ইলেকট্রিক শেভার (5W)</option>
+                                <option value="ইলেকট্রিক টুথব্রাশ|3">ইলেকট্রিক টুথব্রাশ (3W)</option>
+                                <option value="গেম কনসোল|150">গেম কনসোল (150W)</option>
+                                <option value="প্রজেক্টর|200">প্রজেক্টর (200W)</option>
+                                <option value="অ্যাকোয়ারিয়াম পাম্প|20">অ্যাকোয়ারিয়াম পাম্প (20W)</option>
+                                <option value="ইলেকট্রিক কম্বল|100">ইলেকট্রিক কম্বল (100W)</option>
+                                <option value="ডিহিউমিডিফায়ার|300">ডিহিউমিডিফায়ার (300W)</option>
+                                <option value="হিউমিডিফায়ার|50">হিউমিডিফায়ার (50W)</option>
+                                <option value="এয়ার পিউরিফায়ার|70">এয়ার পিউরিফায়ার (70W)</option>
+                                <option value="ইলেকট্রিক গ্রিল|1500">ইলেকট্রিক গ্রিল (1500W)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="custom-appliance-name" class="block text-sm font-medium text-gray-700 mb-1">যন্ত্রপাতির নাম (কাস্টম)</label>
+                            <input type="text" id="custom-appliance-name" class="input-field" placeholder="যেমন: কম্পিউটার">
+                        </div>
+                        <div>
+                            <label for="custom-appliance-watt" class="block text-sm font-medium text-gray-700 mb-1">যন্ত্রপাতির ওয়াট (কাস্টম)</label>
+                            <input type="number" id="custom-appliance-watt" class="input-field" placeholder="যেমন: 200" min="0">
+                        </div>
+                        <div>
+                            <label for="appliance-quantity" class="block text-sm font-medium text-gray-700 mb-1">সংখ্যা</label>
+                            <input type="number" id="appliance-quantity" class="input-field" value="1" min="1">
+                        </div>
+                        <div>
+                            <label for="daily-hours" class="block text-sm font-medium text-gray-700 mb-1">প্রতিদিন ব্যবহারের সময় (ঘন্টা)</label>
+                            <input type="number" id="daily-hours" class="input-field" value="8" min="0" max="24">
+                        </div>
+                        <div>
+                            <label for="monthly-days" class="block text-sm font-medium text-gray-700 mb-1">প্রতি মাসে ব্যবহারের দিন সংখ্যা</label>
+                            <input type="number" id="monthly-days" class="input-field" value="30" min="0" max="31">
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap justify-center gap-4 mt-4 btn-group-center">
+                        <button id="add-appliance-btn" class="btn-primary w-full md:w-auto">যন্ত্রপাতি যোগ করুন</button>
+                        <button id="load-demo-data-btn" class="btn-secondary w-full md:w-auto">ডেমো ডেটা লোড করুন</button>
+                    </div>
+                </div>
+
+                <div id="appliance-list-card" class="card mb-6 hidden">
+                    <h3 class="text-xl font-semibold mb-4 text-gray-700">আপনার যন্ত্রপাতির তালিকা</h3>
+                    <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="py-3 px-4 text-center text-sm font-semibold text-gray-600">নং</th>
+                                    <th class="py-3 px-4 text-center text-sm font-semibold text-gray-600">যন্ত্রপাতির নাম</th>
+                                    <th class="py-3 px-4 text-center text-sm font-semibold text-gray-600">ওয়াট</th>
+                                    <th class="py-3 px-4 text-center text-sm font-semibold text-gray-600">সংখ্যা</th>
+                                    <th class="py-3 px-4 text-center text-sm font-semibold text-gray-600">দৈনিক ব্যবহার (ঘন্টা)</th>
+                                    <th class="py-3 px-4 text-center text-sm font-semibold text-gray-600">মাসিক ব্যবহার (দিন)</th>
+                                    <th class="py-3 px-4 text-center text-sm font-semibold text-gray-600">মাসিক ইউনিট (kWh)</th>
+                                    <th class="py-3 px-4 text-center text-sm font-semibold text-gray-600">কার্যক্রম</th>
+                                </tr>
+                            </thead>
+                            <tbody id="appliance-list">
+                                <tr id="no-appliance-row">
+                                    <td colspan="8" class="py-4 text-center text-gray-500">কোনো যন্ত্রপাতি যোগ করা হয়নি।</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="appliance-feedback" class="card p-4 rounded-lg mt-4 hidden">
+                    <p class="font-semibold text-lg mb-2 text-gray-700">গুরুত্বপূর্ণ পরামর্শ:</p>
+                    <ul id="appliance-feedback-list" class="list-disc list-inside text-sm space-y-1">
+                    </ul>
+                </div>
+            </div>
+
+            <div id="general-bill" class="tab-content hidden">
+                <div class="card mb-6">
+                    <h3 class="text-xl font-semibold mb-4 text-gray-700">মোট ইউনিট অনুযায়ী বিল গণনা</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="total-units-general" class="block text-sm font-medium text-gray-700 mb-1">মোট ব্যবহৃত ইউনিট (kWh)</label>
+                            <input type="number" id="total-units-general" class="input-field" placeholder="যেমন: 250" min="0">
+                        </div>
+                        <div>
+                            <label for="tariff-type-general" class="block text-sm font-medium text-gray-700 mb-1">ট্যারিফ প্রকার নির্বাচন করুন</label>
+                            <select id="tariff-type-general" class="input-field">
+                                <option value="residential">আবাসিক</option>
+                                <option value="commercial">বাণিজ্যিক</option>
+                                <option value="industrial">শিল্প</option>
+                            </select>
+                        </div>
+                        <div id="general-peak-offpeak-inputs" class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+                            <div>
+                                <label for="peak-units-general" class="block text-sm font-medium text-gray-700 mb-1">পিক আওয়ার ইউনিট (kWh)</label>
+                                <input type="number" id="peak-units-general" class="input-field" placeholder="যেমন: 100" min="0">
+                            </div>
+                            <div>
+                                <label for="offpeak-units-general" class="block text-sm font-medium text-gray-700 mb-1">অফ-পিক আওয়ার ইউনিট (kWh)</label>
+                                <input type="number" id="offpeak-units-general" class="input-field" placeholder="যেমন: 150" min="0">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-center mt-4">
+                        <button id="calculate-general-bill-btn" class="btn-primary w-full md:w-auto">বিল গণনা করুন</button>
+                    </div>
+                </div>
+                <div id="general-feedback" class="card p-4 rounded-lg mt-4 hidden">
+                    <p class="font-semibold text-lg mb-2 text-gray-700">গুরুত্বপূর্ণ পরামর্শ:</p>
+                    <ul id="general-feedback-list" class="list-disc list-inside text-sm space-y-1">
+                    </ul>
+                </div>
+            </div>
+
+            <div id="three-phase-bill" class="tab-content hidden">
+                <div class="card mb-6">
+                    <h3 class="text-xl font-semibold mb-4 text-gray-700">থ্রি-ফেজ বিল গণনা</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="total-units-three-phase" class="block text-sm font-medium text-gray-700 mb-1">মোট ব্যবহৃত ইউনিট (kWh)</label>
+                            <input type="number" id="total-units-three-phase" class="input-field" placeholder="যেমন: 1000" min="0">
+                        </div>
+                        <div>
+                            <label for="demand-three-phase" class="block text-sm font-medium text-gray-700 mb-1">ডিমান্ড (kW)</label>
+                            <input type="number" id="demand-three-phase" class="input-field" placeholder="যেমন: 10" min="0">
+                        </div>
+                        <div>
+                            <label for="power-factor-three-phase" class="block text-sm font-medium text-gray-700 mb-1">পাওয়ার ফ্যাক্টর</label>
+                            <input type="number" id="power-factor-three-phase" class="input-field" placeholder="যেমন: 0.9" min="0.1" max="1.0" step="0.01">
+                        </div>
+                        <div>
+                            <label for="peak-units-three-phase" class="block text-sm font-medium text-gray-700 mb-1">পিক আওয়ার ইউনিট (kWh)</label>
+                            <input type="number" id="peak-units-three-phase" class="input-field" placeholder="যেমন: 400" min="0">
+                        </div>
+                        <div>
+                            <label for="offpeak-units-three-phase" class="block text-sm font-medium text-gray-700 mb-1">অফ-পিক আওয়ার ইউনিট (kWh)</label>
+                            <input type="number" id="offpeak-units-three-phase" class="input-field" placeholder="যেমন: 600" min="0">
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap justify-center gap-4 mt-4 btn-group-center">
+                        <button id="calculate-three-phase-bill-btn" class="btn-primary w-full md:w-auto">বিল গণনা করুন</button>
+                        <button id="load-three-phase-demo-btn" class="btn-secondary w-full md:w-auto">ডেমো ডেটা লোড করুন</button>
+                    </div>
+                </div>
+                <div id="three-phase-feedback" class="card p-4 rounded-lg mt-4 hidden">
+                    <p class="font-semibold text-lg mb-2 text-gray-700">গুরুত্বপূর্ণ পরামর্শ:</p>
+                    <ul id="three-phase-feedback-list" class="list-disc list-inside text-sm space-y-1">
+                    </ul>
+                </div>
+            </div>
+
+            <div id="bill-summary-card" class="card mb-6 hidden">
+                <h3 class="text-2xl font-bold mb-6 text-gray-800 text-center">বিলের সারসংক্ষেপ</h3>
+                <div class="bg-gradient-to-br from-green-100 to-green-200 p-6 rounded-xl shadow-md border border-green-300">
+                    <h4 class="text-xl font-semibold text-green-800 mb-4 border-b border-green-300 pb-2">বর্তমান মাসের বিল</h4>
+                    <div class="space-y-3 text-lg">
+                        <div class="flex justify-between items-center py-1">
+                            <span class="font-medium text-gray-700">মোট ব্যবহৃত ইউনিট:</span>
+                            <span id="total-units" class="font-bold text-green-700">০.০০ kWh</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1">
+                            <span class="font-medium text-gray-700">গড় ইউনিট মূল্য:</span>
+                            <span id="avg-unit-price" class="font-bold text-green-700">৳ ০.০০</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1">
+                            <span class="font-medium text-gray-700">ফিক্সড চার্জ:</span>
+                            <span id="fixed-charge" class="font-bold text-green-700">৳ ০.০০</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1">
+                            <span class="font-medium text-gray-700">ডিমান্ড চার্জ:</span>
+                            <span id="demand-charge" class="font-bold text-green-700">৳ ০.০০</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1">
+                            <span class="font-medium text-gray-700">ভ্যাট (৫%):</span>
+                            <span id="vat-amount" class="font-bold text-green-700">৳ ০.০০</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-green-300 p-3 rounded-lg text-2xl font-bold text-green-900 mt-4">
+                            <span class="font-medium">মোট বিল:</span>
+                            <span id="total-bill">৳ ০.০০</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap justify-center gap-4 mt-8">
+                    <button id="generate-invoice-btn" class="btn-primary flex items-center justify-center gap-2">
+                        <i class="fas fa-file-invoice"></i> ইনভয়েস তৈরি করুন
+                    </button>
+                    <button id="show-graph-btn" class="btn-secondary flex items-center justify-center gap-2">
+                        <i class="fas fa-chart-bar"></i> পাওয়ার কনজাম্পশন গ্রাফ
+                    </button>
+                    <button id="reset-btn" class="btn-danger flex items-center justify-center gap-2">
+                        <i class="fas fa-redo"></i> রিসেট করুন
+                    </button>
+                </div>
+            </div>
+
+            <div class="card mb-6">
+                <h3 class="text-xl font-semibold mb-4 text-gray-700 text-center">বিদ্যুৎ সাশ্রয়ের টিপস ও ট্রিকস</h3>
+                <div id="tips-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                </div>
+                <div class="text-center mt-6 flex justify-center items-center gap-4">
+                    <button id="load-more-tips-btn" class="btn-secondary">আরও দেখুন</button>
+                    <button id="show-less-tips-btn" class="btn-secondary hidden">কম দেখুন</button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <footer class="bg-gray-800 text-gray-400 p-6 text-center mt-auto shadow-inner">
+        <div class="container mx-auto">
+            <p class="text-lg font-semibold mb-2 text-white">বিদ্যুৎ বিল ক্যালকুলেটর </p>
+            <p class="text-xs mt-2 text-white-500">এই ক্যালকুলেটরটি শুধুমাত্র আনুমানিক বিল গণনার জন্য। প্রকৃত বিল আপনার বিদ্যুৎ সরবরাহকারীর নিয়মানুযায়ী পরিবর্তিত হতে পারে।</p>
+            <p class="text-sm">&copy; <span id="current-year"></span> সর্বস্বত্ব সংরক্ষিত।</p>
+        </div>
+    </footer>
+
+    <div id="invoice-modal" class="modal-overlay">
+        <div class="modal-content w-full md:w-3/4 lg:w-2/3 xl:w-1/2">
+            <button class="close-button" onclick="$('#invoice-modal').removeClass('open')">&times;</button>
+            <div id="invoice-loading-spinner" class="loading-spinner hidden"></div>
+            <div id="invoice-content" class="hidden">
+                <div id="invoice-header-area">
+                    <div class="header-content">
+                        <i class="fas fa-bolt header-logo"></i>
+                        <span class="header-title">বিদ্যুৎ বিল ক্যালকুলেটর</span>
+                    </div>
+                </div>
+
+                <h2 class="invoice-title">বিদ্যুৎ বিল ইনভয়েস</h2>
+                <div class="invoice-header-info text-sm mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                    <div class="space-y-1 text-left">
+                        <p>বিল মাস: <span id="invoice-bill-month" class="font-bold"></span></p>
+                        <p>এলাকা: <span id="invoice-full-address" class="font-bold"></span></p>
+                        <p>সরবরাহকারী: <span id="invoice-provider" class="font-bold"></span></p>
+                        <p>ট্যারিফ প্রকার: <span id="invoice-tariff-type" class="font-bold"></span></p>
+                    </div>
+                    <div class="space-y-1 text-left md:text-right">
+                        <p>তারিখ: <span id="invoice-date" class="font-bold"></span></p>
+                        <p>ইনভয়েস আইডি: <span id="invoice-id" class="font-bold"></span></p>
+                        <p>গ্রাহক আইডি: <span class="font-bold">২৮৬৪৬৩০১২</span></p>
+                    </div>
+                </div>
+
+                <div id="invoice-appliance-list-section" class="mb-6 hidden">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-700">যন্ত্রপাতির তালিকা</h3>
+                    <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+                        <table class="min-w-full bg-white">
+                            <thead>
+                                <tr class="bg-gray-50">
+                                    <th class="py-2 px-3 text-center text-xs font-semibold text-gray-600">নং</th>
+                                    <th class="py-2 px-3 text-center text-xs font-semibold text-gray-600">যন্ত্রপাতির নাম</th>
+                                    <th class="py-2 px-3 text-center text-xs font-semibold text-gray-600">ওয়াট</th>
+                                    <th class="py-2 px-3 text-center text-xs font-semibold text-gray-600">সংখ্যা</th>
+                                    <th class="py-2 px-3 text-center text-xs font-semibold text-gray-600">দৈনিক ব্যবহার (ঘন্টা)</th>
+                                    <th class="py-2 px-3 text-center text-xs font-semibold text-gray-600">মাসিক ব্যবহার (দিন)</th>
+                                    <th class="py-2 px-3 text-center text-xs font-semibold text-gray-600">মাসিক ইউনিট (kWh)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoice-appliance-list">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="invoice-general-bill-details-section" class="mb-6 hidden">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-700">মোট ইউনিট অনুযায়ী বিলের বিবরণ</h3>
+                    <div class="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-lg">
+                        <p class="mb-2"><span class="font-semibold">মোট ব্যবহৃত ইউনিট:</span> <span id="invoice-general-total-units"></span> kWh</p>
+                        <p class="mb-2"><span class="font-semibold">ট্যারিফ প্রকার:</span> <span id="invoice-general-tariff-type-display"></span></p>
+                        <p class="mb-2"><span class="font-semibold">পিক আওয়ার ইউনিট:</span> <span id="invoice-general-peak-units"></span> kWh</p>
+                        <p><span class="font-semibold">অফ-পিক আওয়ার ইউনিট:</span> <span id="invoice-general-offpeak-units"></span> kWh</p>
+                    </div>
+                </div>
+
+                <div id="invoice-three-phase-bill-details-section" class="mb-6 hidden">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-700">থ্রি-ফেজ বিলের বিবরণ</h3>
+                    <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-lg">
+                        <p class="mb-2"><span class="font-semibold">মোট ব্যবহৃত ইউনিট:</span> <span id="invoice-three-phase-total-units"></span> kWh</p>
+                        <p class="mb-2"><span class="font-semibold">ডিমান্ড:</span> <span id="invoice-three-phase-demand"></span> kW</p>
+                        <p class="mb-2"><span class="font-semibold">পাওয়ার ফ্যাক্টর:</span> <span id="invoice-three-phase-power-factor"></span></p>
+                        <p class="mb-2"><span class="font-semibold">পিক আওয়ার ইউনিট:</span> <span id="invoice-three-phase-peak-units"></span> kWh</p>
+                        <p><span class="font-semibold">অফ-পিক আওয়ার ইউনিট:</span> <span id="invoice-three-phase-offpeak-units"></span> kWh</p>
+                    </div>
+                </div>
+
+                <h3 class="text-lg font-semibold mb-3 text-gray-700">বিলের সারসংক্ষেপ</h3>
+                <div class="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl shadow-md border border-green-200">
+                    <div class="space-y-3 text-lg">
+                        <div class="flex justify-between items-center border-b border-green-200 pb-2">
+                            <span class="font-medium text-gray-700">মোট ব্যবহৃত ইউনিট:</span>
+                            <span id="invoice-total-units" class="font-bold text-green-700">০.০০ kWh</span>
+                        </div>
+                        <div class="flex justify-between items-center border-b border-green-200 pb-2">
+                            <span class="font-medium text-gray-700">গড় ইউনিট মূল্য:</span>
+                            <span id="invoice-avg-unit-price" class="font-bold text-green-700">৳ ০.০০</span>
+                        </div>
+                        <div class="flex justify-between items-center border-b border-green-200 pb-2">
+                            <span class="font-medium text-gray-700">ফিক্সড চার্জ:</span>
+                            <span id="invoice-fixed-charge" class="font-bold text-green-700">৳ ০.০০</span>
+                        </div>
+                        <div class="flex justify-between items-center border-b border-green-200 pb-2">
+                            <span class="font-medium text-gray-700">ডিমান্ড চার্জ:</span>
+                            <span id="invoice-demand-charge" class="font-bold text-green-700">৳ ০.০০</span>
+                        </div>
+                        <div class="flex justify-between items-center border-b border-green-200 pb-2">
+                            <span class="font-medium text-gray-700">ভ্যাট (৫%):</span>
+                            <span id="invoice-vat-amount" class="font-bold text-green-700">৳ ০.০০</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-green-200 p-3 rounded-lg text-2xl font-bold text-green-800 mt-4">
+                            <span class="font-medium">মোট বিল:</span>
+                            <span id="invoice-total-bill">৳ ০.০০</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="invoice-feedback-section" class="bg-gray-50 border border-gray-200 p-4 rounded-lg mt-6 hidden">
+                    <p class="font-semibold text-lg mb-2 text-gray-700">গুরুত্বপূর্ণ পরামর্শ:</p>
+                    <ul id="invoice-feedback-list" class="list-disc list-inside text-sm space-y-1 text-gray-600">
+                    </ul>
+                </div>
+
+                <div class="pdf-stylish-footer">
+                    <p class="flex items-center justify-center">
+                        <i class="fas fa-bolt footer-logo"></i>
+                        <span class="footer-text">বিদ্যুৎ বিল ক্যালকুলেটর - আপনার বিদ্যুৎ খরচ কমাতে আমরা আপনার পাশে আছি!</span>
+                    </p>
+                    <p class="text-xs mt-1">এই বিলটি শুধুমাত্র আনুমানিক গণনার জন্য। প্রকৃত বিল আপনার বিদ্যুৎ সরবরাহকারীর নিয়মানুযায়ী পরিবর্তিত হতে পারে।</p>
+                </div>
+            </div>
+            <div class="text-center mt-6 flex justify-center gap-4">
+                <button id="download-pdf-btn" class="btn-primary flex items-center justify-center gap-2">
+                    <i class="fas fa-download"></i> PDF ডাউনলোড করুন
+                </button>
+                <!-- Removed PNG download button as per user request -->
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-appliance-modal" class="modal-overlay">
+        <div class="modal-content w-full md:w-1/2 lg:w-1/3">
+            <button class="close-button" onclick="$('#edit-appliance-modal').removeClass('open')">&times;</button>
+            <h3 class="text-xl font-semibold mb-4 text-gray-700 text-center">যন্ত্রপাতি আপডেট করুন</h3>
+            <div class="grid grid-cols-1 gap-4 mb-4">
+                <div>
+                    <label for="edit-appliance-select" class="block text-sm font-medium text-gray-700 mb-1">পূর্বনির্ধারিত যন্ত্রপাতি</label>
+                    <select id="edit-appliance-select" class="input-field">
+                        <option value="">নির্বাচিত যন্ত্রপাতি</option>
+                        <option value="এলইডি লাইট|10">এলইডি লাইট (10W)</option>
+                        <option value="ফ্যান|75">ফ্যান (75W)</option>
+                        <option value="রেফ্রিজারেটর|150">রেফ্রিজারেটর (150W)</option>
+                        <option value="টিভি|100">টিভি (100W)</option>
+                        <option value="কম্পিউটার|200">কম্পিউটার (200W)</option>
+                        <option value="মাইক্রোওয়েভ ওভেন|1200">মাইক্রোওয়েভ ওভেন (1200W)</option>
+                        <option value="ওয়াশিং মেশিন|2000">ওয়াশিং মেশিন (2000W)</option>
+                        <option value="ইলেকট্রিক কেটলি|1500">ইলেকট্রিক কেটলি (1500W)</option>
+                        <option value="হেয়ার ড্রায়ার|1800">হেয়ার ড্রায়ার (1800W)</option>
+                        <option value="ভ্যাকুয়াম ক্লিনার|1000">ভ্যাকুয়াম ক্লিনার (1000W)</option>
+                        <option value="টোস্টার|800">টোস্টার (800W)</option>
+                        <option value="ব্লেন্ডার|300">ব্লেন্ডার (300W)</option>
+                        <option value="কফি মেকার|1000">কফি মেকার (1000W)</option>
+                        <option value="ডিশওয়াশার|1200">ডিশওয়াশার (1200W)</option>
+                        <option value="ইলেকট্রিক ওভেন|2500">ইলেকট্রিক ওভেন (2500W)</option>
+                        <option value="ওয়াটার হিটার (গিজার)|2000">ওয়াটার হিটার (গিজার) (2000W)</option>
+                        <option value="ইস্ত্রি|1000">ইস্ত্রি (1000W)</option>
+                        <option value="পানির পাম্প|750">পানির পাম্প (750W)</option>
+                        <option value="এয়ার কুলার|150">এয়ার কুলার (150W)</option>
+                        <option value="সাউন্ড সিস্টেম|50">সাউন্ড সিস্টেম (50W)</option>
+                        <option value="প্রিন্টার|50">প্রিন্টার (50W)</option>
+                        <option value="রাউটার|10">রাউটার (10W)</option>
+                        <option value="চার্জার (মোবাইল/ল্যাপটপ)|15">চার্জার (মোবাইল/ল্যাপটপ) (15W)</option>
+                        <option value="ইলেকট্রিক কুকার|1000">ইলেকট্রিক কুকার (1000W)</option>
+                        <option value="হিটার|2000">হিটার (2000W)</option>
+                        <option value="ডিশ অ্যান্টেনা|10">ডিশ অ্যান্টেনা (10W)</option>
+                        <option value="সিসিটিভি ক্যামেরা|10">সিসিটিভি ক্যামেরা (10W)</option>
+                        <option value="সিকিউরিটি অ্যালার্ম|5">সিকিউরিটি অ্যালার্ম (5W)</option>
+                        <option value="ইলেকট্রিক শেভার|5">ইলেকট্রিক শেভার (5W)</option>
+                        <option value="ইলেকট্রিক টুথব্রাশ|3">ইলেকট্রিক টুথব্রাশ (3W)</option>
+                        <option value="গেম কনসোল|150">গেম কনসোল (150W)</option>
+                        <option value="প্রজেক্টর|200">প্রজেক্টর (200W)</option>
+                        <option value="অ্যাকোয়ারিয়াম পাম্প|20">অ্যাকোয়ারিয়াম পাম্প (20W)</option>
+                        <option value="ইলেকট্রিক কম্বল|100">ইলেকট্রিক কম্বল (100W)</option>
+                        <option value="ডিহিউমিডিফায়ার|300">ডিহিউমিডিফায়ার (300W)</option>
+                        <option value="হিউমিডিফায়ার|50">হিউমিডিফায়ার (50W)</option>
+                        <option value="এয়ার পিউরিফায়ার|70">এয়ার পিউরিফায়ার (70W)</option>
+                        <option value="ইলেকট্রিক গ্রিল|1500">ইলেকট্রিক গ্রিল (1500W)</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="edit-appliance-name" class="block text-sm font-medium text-gray-700 mb-1">যন্ত্রপাতির নাম</label>
+                    <input type="text" id="edit-appliance-name" class="input-field" placeholder="যেমন: কম্পিউটার">
+                </div>
+                <div>
+                    <label for="edit-appliance-watt" class="block text-sm font-medium text-gray-700 mb-1">যন্ত্রপাতির ওয়াট</label>
+                    <input type="number" id="edit-appliance-watt" class="input-field" placeholder="যেমন: 200" min="0">
+                </div>
+                <div>
+                    <label for="edit-appliance-quantity" class="block text-sm font-medium text-gray-700 mb-1">সংখ্যা</label>
+                    <input type="number" id="edit-appliance-quantity" class="input-field" value="1" min="1">
+                </div>
+                <div>
+                    <label for="edit-daily-hours" class="block text-sm font-medium text-gray-700 mb-1">প্রতিদিন ব্যবহারের সময় (ঘন্টা)</label>
+                    <input type="number" id="edit-daily-hours" class="input-field" value="8" min="0" max="24">
+                </div>
+                <div>
+                    <label for="edit-monthly-days" class="block text-sm font-medium text-gray-700 mb-1">প্রতি মাসে ব্যবহারের দিন সংখ্যা</label>
+                    <input type="number" id="edit-monthly-days" class="input-field" value="30" min="0" max="31">
+                </div>
+            </div>
+            <div class="flex justify-center mt-4">
+                <button id="save-appliance-changes-btn" class="btn-primary w-full md:w-auto">পরিবর্তন সংরক্ষণ করুন</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="graph-modal" class="modal-overlay">
+        <div class="modal-content w-full md:w-3/4 lg:w-2/3 xl:w-1/2">
+            <button class="close-button" onclick="$('#graph-modal').removeClass('open')">&times;</button>
+            <div id="graph-loading-spinner" class="loading-spinner hidden"></div>
+            <h2 class="text-2xl font-bold mb-4 text-gray-800 text-center">যন্ত্রপাতি পাওয়ার কনজাম্পশন গ্রাফ</h2>
+            <div class="chart-container" style="position: relative; height:40vh; width:80vw; max-width: 600px; margin: auto;">
+                <canvas id="powerConsumptionChart"></canvas>
+            </div>
+            <div class="mt-6 p-6 bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl shadow-lg border border-blue-200">
+                <h3 class="text-xl font-bold mb-4 text-blue-800 text-center border-b-2 border-blue-300 pb-2">গ্রাফের ব্যাখ্যা: আপনার যন্ত্রপাতির বিদ্যুৎ খরচ বুঝুন</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-blue-800">
+                    <div class="flex items-start bg-white p-4 rounded-lg shadow-sm border border-blue-100">
+                        <i class="fas fa-chart-line text-green-600 text-2xl mr-4 mt-1"></i>
+                        <div>
+                            <p class="font-semibold text-blue-900 mb-1">মাসিক বিদ্যুৎ খরচ (ইউনিট):</p>
+                            <p class="text-sm">প্রতিটি বারের উচ্চতা আপনার নির্দিষ্ট যন্ত্রপাতির মাসিক ইউনিট খরচ (kWh) নির্দেশ করে। যে বারের উচ্চতা বেশি, সেই যন্ত্রপাতির বিদ্যুৎ খরচও বেশি। এটি আপনাকে সবচেয়ে বেশি বিদ্যুৎ খরচ করা যন্ত্রপাতি সনাক্ত করতে সাহায্য করবে।</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start bg-white p-4 rounded-lg shadow-sm border border-blue-100">
+                        <i class="fas fa-fire text-red-600 text-2xl mr-4 mt-1"></i>
+                        <div>
+                            <p class="font-semibold text-blue-900 mb-1">উচ্চ ব্যবহার (শীর্ষ ৩):</p>
+                            <p class="text-sm">গ্রাফে লাল রঙের বারগুলো আপনার বাড়ির সবচেয়ে বেশি বিদ্যুৎ খরচ করা শীর্ষ ৩টি যন্ত্রপাতিকে চিহ্নিত করে। এদের ব্যবহার কমানোর সুযোগ আছে কিনা, তা ভেবে দেখুন। অপ্রয়োজনীয় ব্যবহার কমিয়ে বিল সাশ্রয় করতে পারেন।</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start bg-white p-4 rounded-lg shadow-sm border border-blue-100">
+                        <i class="fas fa-money-bill-wave text-purple-600 text-2xl mr-4 mt-1"></i>
+                        <div>
+                            <p class="font-semibold text-blue-900 mb-1">আনুমানিক খরচ (৳):</p>
+                            <p class="text-sm">নীল রঙের লাইনটি প্রতিটি যন্ত্রপাতির মাসিক ইউনিট খরচের উপর ভিত্তি করে আনুমানিক মাসিক খরচ টাকায় দেখায়। এটি আপনাকে বুঝতে সাহায্য করবে কোন যন্ত্রপাতি আপনার বিলের কত অংশ দখল করছে এবং কোথায় খরচ কমানো যেতে পারে।</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start bg-white p-4 rounded-lg shadow-sm border border-blue-100">
+                        <i class="fas fa-info-circle text-gray-600 text-2xl mr-4 mt-1"></i>
+                        <div>
+                            <p class="font-semibold text-blue-900 mb-1">বিস্তারিত তথ্য:</p>
+                            <p class="text-sm">গ্রাফের যেকোনো বারে ক্লিক করলে সেই নির্দিষ্ট যন্ত্রপাতির ওয়াট, ব্যবহারের সময়, ভোল্টেজ এবং বিদ্যুৎ খরচের লেবেল সহ বিস্তারিত তথ্য পপআপে দেখতে পাবেন। এটি আপনাকে প্রতিটি যন্ত্রপাতির কার্যকারিতা এবং খরচ সম্পর্কে গভীর ধারণা দেবে।</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center mt-6">
+                <button id="download-graph-pdf-btn" class="btn-primary flex items-center justify-center gap-2 mx-auto">
+                    <i class="fas fa-download"></i> গ্রাফ PDF ডাউনলোড করুন
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="appliance-details-modal" class="modal-overlay">
+        <div class="modal-content w-full md:w-1/2 lg:w-1/3">
+            <button class="close-button" onclick="$('#appliance-details-modal').removeClass('open')">&times;</button>
+            <h3 class="text-xl font-bold mb-4 text-gray-800 text-center">যন্ত্রপাতির বিস্তারিত তথ্য</h3>
+            <div class="bg-gradient-to-br from-purple-100 to-purple-200 p-6 rounded-xl shadow-md border border-purple-300">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-lg text-purple-800">
+                    <p><span class="font-semibold">যন্ত্রপাতি:</span> <span id="detail-appliance-name"></span></p>
+                    <p><span class="font-semibold">ওয়াট:</span> <span id="detail-appliance-watt"></span>W</p>
+                    <p><span class="font-semibold">সংখ্যা:</span> <span id="detail-appliance-quantity"></span></p>
+                    <p><span class="font-semibold">দৈনিক ব্যবহার:</span> <span id="detail-daily-hours"></span> ঘন্টা</p>
+                    <p><span class="font-semibold">মাসিক ব্যবহার:</span> <span id="detail-monthly-days"></span> দিন</p>
+                    <p><span class="font-semibold">মাসিক ইউনিট:</span> <span id="detail-monthly-unit"></span> kWh</p>
+                    <p><span class="font-semibold">ভোল্টেজ:</span> <span id="detail-voltage"></span></p>
+                    <p><span class="font-semibold">বিদ্যুৎ খরচের লেবেল:</span> <span id="detail-power-level"></span></p>
+                </div>
+            </div>
+            <div class="text-center mt-6">
+                <button class="btn-primary" onclick="$('#appliance-details-modal').removeClass('open')">বন্ধ করুন</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="welcome-modal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="close-button" onclick="$('#welcome-modal').removeClass('open')">&times;</button>
+            <h2 class="flex items-center justify-center text-center">
+                <i class="fas fa-bolt mr-2"></i> বিদ্যুৎ বিল ক্যালকুলেটর - স্বাগতম!
+            </h2>
+            <p class="warning-message text-gray-600 text-lg flex items-center justify-center">
+                <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>
+                এটি একটি পরীক্ষামূলক সংস্করণ। আমরা প্রতিনিয়ত নতুন ফিচার যোগ করছি এবং বিদ্যমান ফিচারগুলো উন্নত করছি। আপনার প্রতিক্রিয়া আমাদের জন্য মূল্যবান!
+            </p>
+
+            <div class="text-left mb-8">
+                <h3 class="text-2xl font-semibold text-gray-800 mb-4">এই সাইটটি কীভাবে কাজ করে:</h3>
+                <div class="space-y-4">
+                    <div class="how-it-works-step flex items-start gap-4">
+                        <div class="flex-shrink-0 text-green-500 text-3xl mt-1">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-xl text-gray-700">১. আপনার অবস্থান নির্বাচন করুন:</p>
+                            <p class="text-gray-600">প্রথমে আপনার বিভাগ, জেলা, উপজেলা, এবং এলাকা নির্বাচন করুন। এরপর আপনার বিদ্যুৎ সরবরাহকারী বেছে নিন।</p>
+                        </div>
+                    </div>
+                    <div class="how-it-works-step flex items-start gap-4">
+                        <div class="flex-shrink-0 text-blue-500 text-3xl mt-1">
+                            <i class="fas fa-calculator"></i>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-xl text-gray-700">২. বিল গণনার পদ্ধতি বেছে নিন:</p>
+                            <p class="text-gray-600">আপনি যন্ত্রপাতি-ভিত্তিক, মোট ইউনিট অনুযায়ী, অথবা থ্রি-ফেজ বিল গণনার মধ্যে যেকোনো একটি পদ্ধতি নির্বাচন করতে পারেন।</p>
+                        </div>
+                    </div>
+                    <div class="how-it-works-step flex items-start gap-4">
+                        <div class="flex-shrink-0 text-purple-500 text-3xl mt-1">
+                            <i class="fas fa-lightbulb"></i>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-xl text-gray-700">৩. তথ্য পূরণ করুন ও বিল দেখুন:</p>
+                            <p class="text-gray-600">নির্বাচিত পদ্ধতি অনুযায়ী প্রয়োজনীয় তথ্য (যেমন: যন্ত্রপাতির ওয়াট, ব্যবহারের সময়, মোট ইউনিট) পূরণ করুন এবং তাৎক্ষণিক বিলের সারসংক্ষেপ দেখুন।</p>
+                        </div>
+                    </div>
+                    <div class="how-it-works-step flex items-start gap-4">
+                        <div class="flex-shrink-0 text-orange-500 text-3xl mt-1">
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-xl text-gray-700">৪. ইনভয়েস ও গ্রাফ ডাউনলোড করুন:</p>
+                            <p class="text-gray-600">আপনার বিলের একটি বিস্তারিত ইনভয়েস বা পাওয়ার কনজাম্পশন গ্রাফ PDF আকারে ডাউনলোড করতে পারেন।</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button id="welcome-get-started-btn" class="btn-primary mt-8 px-8 py-3 text-xl">
+                শুরু করুন! <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+    </body>
+</html>
